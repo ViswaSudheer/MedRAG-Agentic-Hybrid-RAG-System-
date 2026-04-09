@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MedRAG • Intelligent Medical Assistant</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  
+  <style>
+    :root {
+      --bg: #0d1117;
+      --sidebar-bg: #0a0e17;
+      --chat-bg: #11151f;
+      --text: #e2e8f0;
+      --text-light: #94a3b8;
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --accent: #a78bfa;
+      --border: rgba(99, 102, 241, 0.18);
+      --input-bg: #1e293b;
+      --user-bg: #312e81;
+      --ai-bg: #1e293b;
+      --glass: rgba(30, 41, 59, 0.45);
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --sidebar-bg: #ffffff;
+      --chat-bg: #f1f5f9;
+      --text: #0f172a;
+      --text-light: #64748b;
+      --primary: #6366f1;
+      --accent: #8b5cf6;
+      --border: #e2e8f0;
+      --input-bg: #ffffff;
+      --user-bg: #e0e7ff;
+      --ai-bg: #f8fafc;
+      --glass: rgba(255,255,255,0.75);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ─── Sidebar ──────────────────────────────────────── */
+    #sidebar {
+      width: 300px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      transition: transform 0.35s ease;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h2 {
+      font-size: 1.4rem;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+
+    #new-chat-btn {
+      background: rgba(99,102,241,0.15);
+      color: var(--primary);
+      border: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+
+    #new-chat-btn:hover { background: rgba(99,102,241,0.3); transform: scale(1.1); }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+    }
+
+    .history-item {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin: 10px 6px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .history-item::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      background: linear-gradient(45deg, var(--primary), var(--accent), #c084fc, var(--primary));
+      background-size: 300% 300%;
+      animation: gradientFlow 10s ease infinite;
+      border-radius: 16px;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .history-item:hover::before,
+    .history-item.active::before {
+      opacity: 0.65;
+    }
+
+    .history-item:hover,
+    .history-item.active {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(99,102,241,0.25);
+    }
+
+    .history-title {
+      font-weight: 600;
+      font-size: 0.98rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-preview {
+      font-size: 0.82rem;
+      opacity: 0.7;
+      margin-top: 5px;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .history-meta {
+      font-size: 0.74rem;
+      opacity: 0.55;
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @keyframes gradientFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .input-wrapper.highlight-after-upload {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+      transition: all 0.4s ease;
+    }
+
+    #message-input:focus {
+      outline: none;
+    }
+    /* ─── Main Chat Area ───────────────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--chat-bg);
+    }
+
+    header {
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 1.45rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #a78bfa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover { background: rgba(255,255,255,0.18); transform: scale(1.08); }
+
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .message {
+      max-width: 78%;
+      padding: 12px 18px;
+      border-radius: 18px;
+      line-height: 1.48;
+      position: relative;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      border-bottom-right-radius: 5px;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      background: var(--ai-bg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 5px;
+    }
+
+    .message .sender {
+      font-size: 0.8rem;
+      opacity: 0.65;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .message .content {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .pdf-preview {
+      display: flex;
+      align-items: center;
+      background: rgba(229, 62, 62, 0.08);
+      border: 1px solid rgba(229, 62, 62, 0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+
+    .pdf-preview small {
+      opacity: 0.7;
+      font-size: 0.85rem;
+    }
+
+    .pdf-preview-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(229, 62, 62, 0.07);
+      border: 1px solid rgba(229, 62, 62, 0.25);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin: 8px 0;
+      max-width: 90%;
+    }
+
+    .pdf-icon {
+      flex-shrink: 0;
+    }
+
+    .pdf-info {
+      flex: 1;
+    }
+
+    .pdf-name {
+      font-weight: 600;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+    }
+
+    .pdf-status {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .pdf-status.success {
+      color: #48bb78;
+    }
+
+    .pdf-status.error {
+      color: #e53e3e;
+    }
+
+    .pdf-hint {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 6px;
+      font-style: italic;
+    }
+    #input-area {
+      padding: 16px 24px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--input-bg);
+      border-radius: 999px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+    }
+
+    #message-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 1.05rem;
+    }
+
+    #message-input::placeholder { color: var(--text-light); }
+
+    .mic-btn.listening { color: #ef4444; animation: pulse 1.5s infinite; }
+
+    .send-btn { color: var(--primary); font-size: 1.35rem; }
+
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+
+    /* Mobile */
+    @media (max-width: 900px) {
+      #sidebar {
+        position: fixed;
+        transform: translateX(-100%);
+      }
+      #sidebar.open { transform: translateX(0); }
+      #hamburger { display: block !important; }
+    }
+
+    #hamburger { display: none; cursor: pointer; font-size: 1.4rem; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <h2>MedRAG</h2>
+    <button id="new-chat-btn"><i class="fas fa-plus"></i></button>
+  </div>
+  <div class="history-list" id="history-list"></div>
+</aside>
+
+<!-- Main Area -->
+<div id="main">
+
+  <header>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <i id="hamburger" class="fas fa-bars"></i>
+      <div class="logo">MedRAG</div>
+    </div>
+
+    <div class="header-controls">
+      <select id="language-select">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="mr">मराठी</option>
+        <option value="ta">தமிழ்</option>
+      </select>
+
+      <button class="btn-icon" id="theme-toggle"><i class="fas fa-moon"></i></button>
+      <button class="btn-icon" id="clear-all"><i class="fas fa-trash"></i></button>
+    </div>
+  </header>
+
+  <div id="chat-container">
+    <!-- Welcome message -->
+    <div class="message ai">
+      <span class="sender">MedRAG</span>
+      <div class="content">
+        Welcome! I'm your medical intelligence assistant.<br>
+        Ask anything, upload reports, or use voice input.
+      </div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <div class="input-wrapper">
+      <button class="mic-btn" id="voice-btn" title="Voice"><i class="fas fa-microphone"></i></button>
+      <input type="text" id="message-input" placeholder="Ask about symptoms, reports, medicines..." autocomplete="off"/>
+      <label for="file-upload" class="btn-icon" style="cursor:pointer;"><i class="fas fa-paperclip"></i></label>
+      <input type="file" id="file-upload" accept=".pdf,.jpg,.png" hidden/>
+      <button class="send-btn" id="send-btn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ──────────────────────────────────────────────────────────────
+//  Chat + History + PDF + FULL VOICE COMPATIBILITY (Final Year)
+//  Features: Multilingual STT + TTS | Auto-speak AI replies | 
+//  Works with language selector (en/hi/mr/ta) | Zero extra deps
+// ──────────────────────────────────────────────────────────────
+
+const chatContainer   = document.getElementById('chat-container');
+const messageInput    = document.getElementById('message-input');
+const sendBtn         = document.getElementById('send-btn');
+const voiceBtn        = document.getElementById('voice-btn');
+const newChatBtn      = document.getElementById('new-chat-btn');
+const historyList     = document.getElementById('history-list');
+const themeToggle     = document.getElementById('theme-toggle');
+const hamburger       = document.getElementById('hamburger');
+const sidebar         = document.getElementById('sidebar');
+const fileInput       = document.getElementById('file-upload');
+const langSelect      = document.getElementById('language-select');   // ← NEW for voice
+
+let currentConversation = {
+  id: Date.now(),
+  title: "New Chat",
+  messages: [],
+  pdfSessionId: null,
+  pdfFileName: null,
+  timestamp: Date.now()
+};
+
+let conversations = JSON.parse(localStorage.getItem('medrag_conversations')) || [];
+
+// ====================== VOICE COMPATIBILITY (High-Level) ======================
+let recognition = null;
+let synthesis = window.speechSynthesis;
+let currentVoiceLang = 'en-IN';   // default
+
+function initVoiceRecognition() {
+    if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+        console.warn("🎤 Browser does not support SpeechRecognition");
+        voiceBtn.style.opacity = "0.3";
+        voiceBtn.title = "Voice not supported (use Chrome/Edge)";
+        return false;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        messageInput.value = transcript;
+        voiceBtn.classList.remove('listening');
+        sendBtn.click();                     // Auto-send voice → chat
+    };
+
+    recognition.onerror = (e) => {
+        console.error("Voice error:", e.error);
+        voiceBtn.classList.remove('listening');
+    };
+
+    recognition.onend = () => voiceBtn.classList.remove('listening');
+
+    return true;
+}
+
+function speakResponse(text) {
+    if (!synthesis || !text || text.trim() === "") return;
+    synthesis.cancel();   // stop any previous speech
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = currentVoiceLang;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+    synthesis.speak(utterance);
+}
+
+// Sync voice language with dropdown
+langSelect.addEventListener('change', () => {
+    const selected = langSelect.value;
+    currentVoiceLang = selected === 'en' ? 'en-IN' : `${selected}-IN`;
+    console.log(`🎤 Voice language updated → ${currentVoiceLang}`);
+});
+
+// ─── Helpers ────────────────────────────────────────────────
+function scrollToBottom() {
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function addMessage(sender, content, options = {}) {
+  const { isPdfUpload = false, fileName = '', status = 'success', pages = null } = options;
+
+  const div = document.createElement('div');
+  div.className = `message ${sender === 'You' ? 'user' : 'ai'}`;
+
+  let inner = '';
+
+  if (isPdfUpload) {
+    const iconColor = status === 'success' ? '#e53e3e' : '#f56565';
+    const statusText = status === 'success' 
+      ? `Processed successfully${pages ? ` • ${pages} pages` : ''}` 
+      : 'Upload failed';
+
+    inner = `
+      <span class="sender">Document uploaded</span>
+      <div class="pdf-preview-card">
+        <div class="pdf-icon">
+          <i class="fas fa-file-pdf" style="font-size:2.2rem; color:${iconColor};"></i>
+        </div>
+        <div class="pdf-info">
+          <div class="pdf-name">${fileName || 'medical-report.pdf'}</div>
+          <div class="pdf-status ${status}">${statusText}</div>
+          <div class="pdf-hint">Now ask anything about this document ↓</div>
+        </div>
+      </div>
+    `;
+  } else {
+    inner = `
+      <span class="sender">${sender}</span>
+      <div class="content">${content}</div>
+    `;
+  }
+
+  div.innerHTML = inner;
+  chatContainer.appendChild(div);
+  scrollToBottom();
+
+  // Save to conversation
+  currentConversation.messages.push({
+    sender,
+    content,
+    time: Date.now(),
+    isPdfUpload,
+    fileName,
+    status,
+    pages
+  });
+  saveConversations();
+}
+
+function saveConversations() {
+  const existingIndex = conversations.findIndex(c => c.id === currentConversation.id);
+  if (existingIndex >= 0) {
+    conversations[existingIndex] = { ...currentConversation };
+  } else {
+    conversations.push({ ...currentConversation });
+  }
+  localStorage.setItem('medrag_conversations', JSON.stringify(conversations));
+  renderHistory();
+}
+
+function renderHistory() {
+  historyList.innerHTML = '';
+  conversations.forEach(conv => {
+    const item = document.createElement('div');
+    item.className = `history-item ${conv.id === currentConversation.id ? 'active' : ''}`;
+
+    let preview = conv.messages.length > 0
+      ? conv.messages[conv.messages.length-1].content.substring(0, 70) + '...'
+      : 'No messages yet';
+
+    let pdfBadge = '';
+    if (conv.pdfSessionId && conv.pdfFileName) {
+      pdfBadge = `<span style="color:#e53e3e; font-size:0.9rem; margin-left:8px;">
+        <i class="fas fa-file-pdf"></i> ${conv.pdfFileName.split('.')[0].slice(0,15)}...
+      </span>`;
+    }
+
+    item.innerHTML = `
+      <div class="history-title">
+        ${conv.title || 'Untitled'}
+        ${pdfBadge}
+      </div>
+      <div class="history-preview">${preview}</div>
+      <div class="history-meta">
+        <span>${new Date(conv.timestamp).toLocaleDateString()}</span>
+        <span>${conv.messages.length} msg</span>
+      </div>
+    `;
+
+    item.addEventListener('click', () => loadConversation(conv.id));
+    historyList.appendChild(item);
+  });
+}
+
+function loadConversation(id) {
+  const conv = conversations.find(c => c.id === id);
+  if (!conv) return;
+
+  currentConversation = { ...conv };
+  chatContainer.innerHTML = '';
+
+  conv.messages.forEach(msg => {
+    addMessage(msg.sender, msg.content, {
+      isPdfUpload: msg.isPdfUpload,
+      fileName: msg.fileName,
+      status: msg.status || 'success',
+      pages: msg.pages
+    });
+  });
+
+  renderHistory();
+}
+
+function startNewChat() {
+  currentConversation = {
+    id: Date.now(),
+    title: "New Chat",
+    messages: [],
+    pdfSessionId: null,
+    pdfFileName: null,
+    timestamp: Date.now()
+  };
+  chatContainer.innerHTML = '';
+  addMessage('MedRAG', 'Hello! How can I assist you with your health questions today?');
+  
+  messageInput.placeholder = "Ask about symptoms, reports, medicines...";
+  document.querySelector('.input-wrapper').classList.remove('highlight-after-upload');
+  
+  saveConversations();
+}
+
+// ─── PDF Upload Handler (unchanged) ─────────────────────────────────────
+fileInput.addEventListener('change', async (e) => {
+  // ... [exact same code as you provided] ...
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    alert('Only PDF files are supported at the moment.');
+    return;
+  }
+
+  addMessage('You', '', {
+    isPdfUpload: true,
+    fileName: file.name,
+    status: 'uploading'
+  });
+
+  const lastPdfMsg = chatContainer.lastElementChild;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Upload failed');
+
+    currentConversation.pdfSessionId = data.session_id;
+    currentConversation.pdfFileName  = file.name;
+    saveConversations();
+
+    lastPdfMsg.querySelector('.pdf-status').textContent = 
+      `Processed successfully • ${data.pages || '?'} pages`;
+    lastPdfMsg.querySelector('.pdf-status').className = 'pdf-status success';
+
+    const inputWrapper = document.querySelector('.input-wrapper');
+    inputWrapper.classList.add('highlight-after-upload');
+    messageInput.placeholder = "Ask anything about this document...";
+    messageInput.focus();
+
+    setTimeout(() => inputWrapper.classList.remove('highlight-after-upload'), 2500);
+
+  } catch (err) {
+    console.error(err);
+    lastPdfMsg.querySelector('.pdf-status').textContent = `Failed: ${err.message}`;
+    lastPdfMsg.querySelector('.pdf-status').className = 'pdf-status error';
+  }
+
+  fileInput.value = '';
+});
+
+// ─── Send message to backend (unchanged) ─────────────────────────────────
+async function sendToBackend(question) {
+  try {
+    const payload = {
+      question,
+      session_id: currentConversation.pdfSessionId || null
+    };
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || "Backend error");
+
+    return data.answer;
+  } catch (err) {
+    console.error("Chat error:", err);
+    return `Error: Could not get response (${err.message})`;
+  }
+}
+
+// ─── Send button / Enter key + AUTO SPEAK ─────────────────────────────────
+sendBtn.addEventListener('click', async () => {
+  const text = messageInput.value.trim();
+  if (!text) return;
+
+  addMessage('You', text);
+  messageInput.value = '';
+
+  const typingMsg = document.createElement('div');
+  typingMsg.className = 'message ai';
+  typingMsg.innerHTML = `
+    <span class="sender">MedRAG</span>
+    <div class="content typing">thinking...</div>
+  `;
+  chatContainer.appendChild(typingMsg);
+  scrollToBottom();
+
+  const answer = await sendToBackend(text);
+
+  typingMsg.remove();
+  addMessage('MedRAG', answer);
+
+  // 🔥 FINAL YEAR VOICE FEATURE: Auto-speak AI reply
+  speakResponse(answer);
+});
+
+messageInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+
+// ─── Voice Button (NOW FULLY WORKING) ─────────────────────────────────
+voiceBtn.addEventListener('click', () => {
+  if (!recognition) {
+    alert("Voice input not supported in this browser.\nPlease use Chrome or Edge.");
+    return;
+  }
+
+  if (voiceBtn.classList.contains('listening')) {
+    recognition.stop();
+  } else {
+    recognition.lang = currentVoiceLang;
+    recognition.start();
+    voiceBtn.classList.add('listening');
+  }
+});
+
+// ─── Other listeners (unchanged) ─────────────────────────────────
+newChatBtn.addEventListener('click', startNewChat);
+
+themeToggle.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  themeToggle.innerHTML = next === 'dark' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+});
+
+hamburger.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+});
+
+// ─── Initialization ───────────────────────────────────────────
+if (conversations.length === 0) {
+  startNewChat();
+} else {
+  loadConversation(conversations[conversations.length - 1].id);
+}
+
+renderHistory();
+
+// ====================== FINAL VOICE INITIALIZATION ======================
+const voiceSupported = initVoiceRecognition();
+if (voiceSupported) {
+  console.log("✅ MedRAG Voice Mode Activated (Multilingual STT + TTS)");
+  // Set initial voice language from dropdown
+  langSelect.dispatchEvent(new Event('change'));
+}
+
+// Optional: First-time toast
+setTimeout(() => {
+  if (voiceSupported) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:20px;left:20px;background:#4f46e5;color:white;padding:12px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.3);z-index:9999;';
+    toast.innerHTML = '🎤 Voice mode ready! Click mic or speak after selecting language.';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4500);
+  }
+}, 1200);
+</script>
+</body>
+</html>
